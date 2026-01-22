@@ -1,1 +1,46 @@
+name: Sincronización Semanal del Porfolio
 
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Se ejecuta cada domingo a las 00:00
+  workflow_dispatch: # Esto habilita el botón para probarlo YA
+
+permissions:
+  contents: write
+
+jobs:
+  sync-server-to-github:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Descargar repositorio actual
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar llave SSH
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: 'placeholder' # Acepta la conexión automáticamente
+          if_key_exists: fail
+
+      - name: 3. Descargar archivos del servidor (Rsync)
+        run: |
+          # Descarga desde tu carpeta docker/portfolio al repositorio
+          # El flag --delete borra en GitHub lo que hayas borrado en el server (opcional)
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+          ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/docker/portfolio/ .
+
+      - name: 4. Guardar cambios en GitHub
+        run: |
+          git config --global user.name "Auto-Updater Bot"
+          git config --global user.email "actions@github.com"
+          
+          # Añadir todo
+          git add .
+          
+          # Verificar si hay cambios antes de hacer commit para evitar errores
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "✅ No hay cambios nuevos en el servidor. Todo está actualizado."
+          else
+            git commit -m "Actualización automática: $(date +'%Y-%m-%d')"
+            git push
+          fi
