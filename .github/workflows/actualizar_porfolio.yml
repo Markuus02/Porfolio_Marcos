@@ -1,38 +1,38 @@
-name: Sincronizacion Semanal
+name: Actualizar Porfolio
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 0 * * 0'
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  sync:
+  sincronizar:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 1. Checkout
         uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: 2. Configurar SSH
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           known_hosts: 'placeholder'
           if_key_exists: fail
 
-      - name: Rsync Files
+      - name: 3. Descargar archivos
         run: |
           rsync -avz -e "ssh -o StrictHostKeyChecking=no" ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/docker/portfolio/ .
 
-      - name: Commit & Push
+      - name: 4. Subir a GitHub
         run: |
-          git config --global user.name "AutoBot"
-          git config --global user.email "bot@github.com"
+          git config --global user.name "Bot"
+          git config --global user.email "bot@noreply.com"
           git add .
           if git diff --quiet && git diff --staged --quiet; then
-            echo "Sin cambios."
+            echo "Sin cambios"
           else
             git commit -m "Auto update"
             git push
