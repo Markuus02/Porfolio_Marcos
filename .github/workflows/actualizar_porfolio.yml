@@ -1,46 +1,39 @@
-name: Sincronización Semanal del Porfolio
+name: Sincronizacion Semanal
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # Se ejecuta cada domingo a las 00:00
-  workflow_dispatch: # Esto habilita el botón para probarlo YA
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  sync-server-to-github:
+  sync:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Descargar repositorio actual
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 2. Configurar llave SSH
+      - name: Setup SSH
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: 'placeholder' # Acepta la conexión automáticamente
+          known_hosts: 'placeholder'
           if_key_exists: fail
 
-      - name: 3. Descargar archivos del servidor (Rsync)
+      - name: Rsync Files
         run: |
-          # Descarga desde tu carpeta docker/portfolio al repositorio
-          # El flag --delete borra en GitHub lo que hayas borrado en el server (opcional)
-          rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
-          ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/docker/portfolio/ .
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no" ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/docker/portfolio/ .
 
-      - name: 4. Guardar cambios en GitHub
+      - name: Commit & Push
         run: |
-          git config --global user.name "Auto-Updater Bot"
-          git config --global user.email "actions@github.com"
-          
-          # Añadir todo
+          git config --global user.name "AutoBot"
+          git config --global user.email "bot@github.com"
           git add .
-          
-          # Verificar si hay cambios antes de hacer commit para evitar errores
           if git diff --quiet && git diff --staged --quiet; then
-            echo "✅ No hay cambios nuevos en el servidor. Todo está actualizado."
+            echo "Sin cambios."
           else
-            git commit -m "Actualización automática: $(date +'%Y-%m-%d')"
+            git commit -m "Auto update"
             git push
           fi
